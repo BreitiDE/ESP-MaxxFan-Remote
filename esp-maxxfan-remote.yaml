@@ -1,0 +1,614 @@
+esphome:
+  name: esp-maxxfan-remote
+  friendly_name: ESP MaxxFan Remote
+
+esp32:
+  board: lolin_s2_mini
+  variant: ESP32S2
+  framework:
+    type: esp-idf
+    version: recommended
+
+preferences:
+  flash_write_interval: 1min
+
+globals:
+  - id: SKWifireconnect
+    type: int
+    restore_value: no
+    initial_value: '-1'
+
+logger:
+  level: INFO
+
+api:
+  encryption:
+    key: "<your_api_key>"
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  fast_connect: true
+  #output_power: 20db
+  #reboot_timeout: 0s
+  on_connect:
+        - lambda: id(SKWifireconnect)+=1;
+
+#  ap:
+#    ssid: "ESP-Maxxfan-Remote"
+#    password: !secret ap_fallback_password
+
+#captive_portal:
+
+#status_led:
+#  pin:
+#    number: GPIO15
+#    inverted: false
+
+#web_server:
+#  port: 80
+#  include_internal: true 
+#  version: 2
+#  auth:
+#    username: !secret web_server_username
+#    password: !secret web_server_password
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    timezone: Europe/Berlin
+    on_time_sync:
+      then:
+        - logger.log: "##### synchronized system clock with HA!"
+
+sensor:
+  - platform: internal_temperature
+    id: esp_internal_temperatur
+    name: "ESP Temperatur"
+
+  - platform: uptime
+    name: "ESP Uptime"
+    id: uptime_sensor
+    update_interval: 60s
+    disabled_by_default: false
+
+  - platform: template
+    id: Anzahl_Wifi_reconnect
+    name: "ESP Wifi reconnect"
+    accuracy_decimals: 0
+    icon: mdi:wifi-sync
+    entity_category: "diagnostic"
+    update_interval: 10s
+    lambda: return id(SKWifireconnect);
+    disabled_by_default: false
+
+text_sensor:
+  - platform: version
+    hide_timestamp: true
+    name: "ESP Version"
+    disabled_by_default: False
+
+button:
+  - platform: restart
+    name: "ESP Restart"
+    disabled_by_default: False
+
+remote_transmitter:
+  pin: GPIO10
+  carrier_duty_percent: 50%
+
+select:
+  - platform: template
+    name: "MaxxFan Function"
+    id: maxxfan_function
+    optimistic: true
+    icon: "mdi:dock-window"
+    options:
+      - "---"
+      - "MaxxFan On"
+      - "MaxxFan Off"
+      - "Cover Open"
+      - "Cover Close"
+    initial_option: "---"
+    on_value:
+      then:
+      - logger.log:
+          format: "Mode: %s (index %d)"
+          args: ["x.c_str()", "i"]
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_function).active_index() == 0);
+          then:
+          - logger.log: "---"
+
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_function).active_index() == 1);
+          then:
+          - logger.log: "MaxxFan On"
+          - remote_transmitter.transmit_raw:
+             code: [1655, -799, 786, -1659, 851, -800, 807, -1637, 853, -799, 808, -819, 1615, -843, 834, -2453, 6546, -2454, 849, -5714, 782, -1660, 5754, -830, 780, -1635, 831, -4913, 844, -2440, 4925, -807, 1645, -1629, 806, -4100, 837, -3267, 4081, -824, 2461, -1640, 2468, -1638, 1638, -3275, 804, -825, 1632, -826, 3240, -1670, 1627, -3286, 2435, -1667, 774, -1675, 799, -2490, 1604, -1673, 797, -8226, 772, -1700, 2410, -856, 1606, -1670, 4045]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_function).active_index() == 2);
+          then:
+          - logger.log: "MaxxFan Off"
+          - remote_transmitter.transmit_raw:
+             code: [1613, -842, 804, -1662, 805, -820, 840, -1627, 800, -827, 835, -813, 1640, -816, 799, -2460, 6543, -2480, 799, -5737, 798, -1666, 5708, -827, 800, -1664, 806, -4941, 798, -2459, 4874, -855, 1604, -1668, 797, -4127, 803, -3276, 4070, -850, 2437, -1669, 2410, -1674, 1600, -3307, 7342, -1677, 1596, -3312, 2427, -1672, 770, -1678, 790, -2492, 1602, -1672, 767, -8248, 768, -1677, 2402, -889, 1566, -1703, 764, -868, 1568]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_function).active_index() == 3);
+          then:
+          - logger.log: "MaxxFan Cover Open"
+          - remote_transmitter.transmit_raw:
+             code: [1854, -721, 856, -1634, 875, -771, 807, -1630, 876, -772, 805, -817, 1633, -818, 875, -2403, 6580, -2264, 946, -5715, 876, -1583, 5781, -770, 807, -1631, 878, -4856, 807, -2452, 4977, -768, 1611, -1632, 832, -4086, 878, -3219, 4076, -816, 2512, -1584, 2441, -1635, 1635, -3268, 2463, -1632, 3268, -1632, 1636, -818, 868, -777, 3281, -1618, 806, -2452, 840, -1622, 1648, -1618, 805, -8168, 838, -1623, 2474, -808, 1644, -1621, 805, -820, 835, -1626, 806]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_function).active_index() == 4);
+          then:
+          - logger.log: "MaxxFan Cover Close"
+          - remote_transmitter.transmit_raw:
+             code: [1634, -821, 828, -1639, 802, -826, 827, -1571, 839, -854, 822, -828, 1631, -826, 801, -2458, 6568, -2402, 849, -5741, 826, -1638, 5682, -856, 793, -1669, 800, -4919, 794, -2486, 4904, -828, 1627, -1645, 822, -4105, 772, -3310, 4069, -854,  2434, -1645, 2432, -1669, 1634, -3301, 2437, -825, 4053, -1669, 1606, -853, 824, -824, 3242, -1665, 800, -2464, 822, -1644, 1630, -1641, 801, -8189, 797, -1672, 2459, -825, 1606, -1665, 773, -854, 797, -849, 1604]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+
+  - platform: template
+    name: "MaxxFan Speed IN"
+    id: maxxfan_speed_in
+    optimistic: true
+    icon: "mdi:arrow-collapse-down"
+    options:
+      - "---"
+      - "10"
+      - "20"
+      - "30"
+      - "40"
+      - "50"
+      - "60"
+      - "70"
+      - "80"
+      - "90"
+      - "100"
+    initial_option: "---"
+    on_value:
+      then:
+      - logger.log:
+          format: "Heat Mode: %s (index %d)"
+          args: ["x.c_str()", "i"]
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_in).active_index() == 0);
+          then:
+          - logger.log: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_in).active_index() == 1);
+          then:
+          - logger.log: "MaxxFan Speed in 10"
+          - remote_transmitter.transmit_raw:
+             code: [1652, -802, 784, -1662, 849, -804, 805, -1640, 846, -806, 811, -816, 1640, -819, 838, -2450, 6548, -2459, 805, -5766, 806, -1638, 5693, -875, 797, -1647, 800, -4975, 776, -2487, 4881, -853, 1606, -1669, 772, -4131, 798, -3312, 4049, -853, 2408, -1696, 2410, -1698, 1601, -3313, 772, -860, 1600, -858, 793, -856, 1579, -1699, 1579, -879, 770, -858, 3245, -1674, 793, -1675, 769, -2498, 1599, -1678, 791, -8240, 795, -1680, 2408, -884, 1575, -1701, 2381, -884, 2408]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_in).active_index() == 2);
+          then:
+          - logger.log: "MaxxFan Speed in 20"
+          - remote_transmitter.transmit_raw:
+             code: [1671, -803, 805, -1632, 844, -803, 804, -1635, 841, -807, 782, -840, 1638, -815, 842, -2438, 6558, -2435, 810, -5724, 839, -1619, 5754, -803, 807, -1633, 837, -4900, 805, -2452, 4902, -820, 1629, -1641, 805, -4117, 808, -3266, 4102, -815, 2465, -1633, 2440, -1637, 1631, -3270, 828, -819, 1635, -818, 3241, -1662, 2436, -851, 796, -826, 2431, -1667, 794, -1649, 794, -2486, 1598, -1670, 769, -8229, 769, -1673, 2403, -880, 1571, -1697, 1573, -882, 767]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_in).active_index() == 3);
+          then:
+          - logger.log: "MaxxFan Speed in 30"
+          - remote_transmitter.transmit_raw:
+             code: [1633, -821, 842, -1623, 806, -819, 842, -1622, 806, -818, 843, -805, 1651, -803, 808, -2451, 6583, -2442, 781, -5755, 843, -1620, 5718, -818, 840, -1623, 806, -4912, 838, -2442, 4922, -835, 1615, -1657, 815, -4089, 800, -3273, 4117, -807, 2443, -1637, 2466, -1639, 1608, -3297, 804, -824, 1658, -823, 3271, -1635, 1638, -3273, 2442, -1637, 830, -1639, 803, -2458, 1632, -1638, 808, -8206, 802, -1644, 2464, -823, 1634, -1635, 4080]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_in).active_index() == 4);
+          then:
+          - logger.log: "MaxxFan Speed in 40"
+          - remote_transmitter.transmit_raw:
+             code: [1657, -799, 785, -1659, 850, -801, 807, -1636, 851, -802, 804, -818, 1616, -840, 851, -2438, 6553, -2455, 837, -5729, 804, -1642, 5715, -847, 803, -1639, 803, -4941, 780, -2483, 4903, -851, 1607, -1668, 774, -4130, 794, -3309, 4044, -859, 2430, -1674, 2433, -1675, 1599, -3316, 766, -884, 1572, -883, 3206, -1703, 3206, -888, 737, -889, 1566, -1734, 733, -1713, 735, -2551, 1539, -1736, 733, -8264, 733, -1737, 2372, -917, 1540, -1734, 1539, -1736, 2370]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_in).active_index() == 5);
+          then:
+          - logger.log: "MaxxFan Speed in 50"
+          - remote_transmitter.transmit_raw:
+             code: [1639, -818, 844, -1628, 786, -843, 846, -1622, 807, -822, 844, -811, 1638, -818, 845, -2445, 6572, -2443, 807, -5738, 849, -1619, 5767, -803, 807, -1637, 848, -4905, 806, -2457, 4918, -817, 1639, -1640, 845, -4084, 810, -3274, 4109, -821, 2476, -1632, 2444, -1642, 1639, -3276, 836, -816, 1644, -814, 3281, -1635, 1642, -816, 1643, -1638, 1647, -1632, 837, -1637, 812, -2455, 1636, -1641, 837, -8189, 803, -1644, 2473, -816, 1643, -1632, 2444, -2463, 832]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_in).active_index() == 6);
+          then:
+          - logger.log: "MaxxFan Speed in 60"
+          - remote_transmitter.transmit_raw:
+             code: [1610, -847, 833, -1614, 802, -847, 781, -1664, 801, -849, 802, -824, 1601, -853, 802, -2484, 6545, -2462, 803, -5765, 779, -1667, 5714, -877, 773, -1644, 801, -4946, 797, -2488, 4882, -852, 1603, -1671, 772, -4132, 799, -3306, 4046, -856, 2434, -1671, 2431, -1673, 1601, -3310, 769, -860, 1597, -882, 3211, -1706, 2403, -3316, 1598, -1679, 766, -1704, 741, -2524, 1572, -1705, 765, -8259, 762, -1708, 2374, -891, 1562, -1733, 1541, -915, 1540, -916, 734]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_in).active_index() == 7);
+          then:
+          - logger.log: "MaxxFan Speed in 70"
+          - remote_transmitter.transmit_raw:
+             code: [1602, -854, 797, -1674, 772, -853, 798, -1669, 798, -854, 771, -857, 1599, -856, 796, -2490, 6520, -2493, 770, -5775, 795, -1674, 5686, -882, 768, -1678, 790, -4963, 763, -2520, 4847, -885, 1571, -1704, 740, -4166, 762, -3346, 4035, -892, 2375, -1736, 2373, -1713, 1565, -3350, 734, -919, 1542, -918, 3182, -1736, 1567, -1713, 2373, -918, 732, -1713, 734, -1741, 730, -2533, 1564, -1712, 733, -8292, 732, -1739, 2347, -917, 1540, -1736, 3179, -917, 734, -917, 709]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_in).active_index() == 8);
+          then:
+          - logger.log: "MaxxFan Speed in 80"
+          - remote_transmitter.transmit_raw:
+             code: [1605, -853, 802, -1667, 772, -853, 800, -1669, 747, -880, 800, -852, 1606, -853, 773, -2490, 6521, -2491, 795, -5773, 800, -1668, 5691, -856, 795, -1673, 771, -4957, 770, -2514, 4880, -856, 1601, -1676, 769, -4140, 791, -3317, 4064, -861, 2406, -1702, 2407, -1681, 1573, -3341, 765, -887, 1570, -888, 3208, -1730, 4012, -892, 735, -915, 735, -1709, 734, -1738, 735, -2529, 1568, -1709, 734, -8290, 733, -1715, 2372, -916, 1542, -1735, 1542, -4219, 708]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_in).active_index() ==9);
+          then:
+          - logger.log: "MaxxFan Speed in 90"
+          - remote_transmitter.transmit_raw:
+             code: [1612, -846, 803, -1643, 800, -849, 803, -1641, 802, -848, 798, -827, 1607, -850, 798, -2487, 6520, -2487, 775, -5795, 774, -1672, 5715, -850, 799, -1647, 795, -4951, 773, -2491, 4877, -878, 1603, -1673, 769, -4137, 796, -3312, 4047, -859, 2432, -1674, 2407, -1680, 1595, -3339, 768, -885, 1575, -883, 3212, -1703, 1573, -886, 740, -1708, 762, -888, 744, -1702, 761, -1710, 736, -2554, 1543, -1736, 735, -8268, 734, -1738, 2374, -893, 1566, -1711, 2401, -894, 734, -1738, 734]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_in).active_index() == 10);
+          then:
+          - logger.log: "MaxxFan Speed in 100"
+          - remote_transmitter.transmit_raw:
+             code: [1613, -844, 773, -1696, 774, -854, 802, -1666, 773, -856, 798, -851, 1609, -848, 797, -2464, 6550, -2486, 797, -5746, 800, -1667, 5688, -852, 801, -1665, 773, -4951, 797, -2492, 4906, -830, 1604, -1671, 799, -4132, 772, -3314, 4070, -856, 2410, -1674, 2432, -1677, 1602, -3314, 798, -857, 1601, -858, 3240, -1677, 2407, -884, 1575, -1703, 743, -1702, 765, -1708, 763, -2500, 1573, -1705, 765, -8263, 742, -1709, 2404, -889, 1572, -1707, 1570, -916, 736, -892, 2376]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_out
+             option: "---"
+
+  - platform: template
+    name: "MaxxFan Speed OUT"
+    id: maxxfan_speed_out
+    icon: "mdi:arrow-collapse-up"
+    optimistic: true
+    options:
+      - "---"
+      - "10"
+      - "20"
+      - "30"
+      - "40"
+      - "50"
+      - "60"
+      - "70"
+      - "80"
+      - "90"
+      - "100"
+    initial_option: "---"
+    on_value:
+      then:
+      - logger.log:
+          format: "Heat Mode: %s (index %d)"
+          args: ["x.c_str()", "i"]
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_out).active_index() == 0);
+          then:
+          - logger.log: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_out).active_index() == 1);
+          then:
+          - logger.log: "MaxxFan Speed out 10"
+          - remote_transmitter.transmit_raw:
+             code: [1648, -809, 805, -1637, 842, -808, 807, -1635, 842, -809, 782, -842, 1636, -818, 840, -2443, 6550, -2456, 807, -5754, 806, -1638, 5714, -845, 801, -1642, 828, -4919, 804, -2457, 4908, -844, 1610, -1662, 801, -4099, 802, -3300, 4071, -826, 2433, -1667, 2435, -1670, 1606, -3306, 773, -857, 794, -1672, 771, -880, 1577, -1696, 1577, -880, 769, -856, 3237, -1676, 769, -1701, 768, -2499, 1596, -1682, 763, -8253, 762, -1710, 2380, -887, 1566, -1735, 5649]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_out).active_index() == 2);
+          then:
+          - logger.log: "MaxxFan Speed out 20"
+          - remote_transmitter.transmit_raw:
+             code: [1621, -832, 815, -1651, 816, -836, 817, -1621, 806, -819, 839, -810, 1647, -807, 805, -2453, 6544, -2453, 837, -5726, 807, -1637, 5742, -823, 836, -1628, 805, -4915, 804, -2481, 4911, -819, 1634, -1640, 807, -4098, 830, -3272, 4079, -845, 2440, -1639, 2440, -1665, 1612, -3297, 806, -822, 804, -1665, 3273, -1635, 2468, -818, 804, -823, 2467, -1638, 802, -1644, 827, -2458, 1635, -1638, 801, -8192, 824, -1644, 2436, -826, 1631, -1640, 1604]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_out).active_index() == 3);
+          then:
+          - logger.log: "MaxxFan Speed out 30"
+          - remote_transmitter.transmit_raw:
+             code: [1669, -810, 786, -1654, 817, -832, 807, -1633, 841, -808, 805, -819, 1634, -818, 815, -2470, 6518, -2471, 806, -5731, 832, -1636, 5707, -848, 801, -1638, 801, -4937, 803, -2454, 4903, -825, 1631, -1643, 825, -4098, 802, -3279, 4092, -828, 2438, -1666, 2434, -1647, 1603, -3306, 796, -853, 773, -1674, 3237, -1696, 1601, -3310, 2404, -1696, 768, -1677, 767, -2517, 1573, -1700, 768, -8226, 764, -1705, 2399, -887, 1543, -1729, 2370, -915, 710]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_out).active_index() == 4);
+          then:
+          - logger.log: "MaxxFan Speed out 40"
+          - remote_transmitter.transmit_raw:
+             code: [1635, -817, 841, -1628, 802, -818, 841, -1623, 806, -818, 817, -831, 1645, -808, 808, -2452, 6544, -2451, 838, -5719, 844, -1621, 5714, -818, 837, -1627, 807, -4908, 808, -2473, 4913, -814, 1639, -1633, 806, -4090, 831, -3293, 4077, -816, 2438, -1638, 2440, -1661, 1609, -3298, 801, -823, 833, -1637, 3242, -1660, 3271, -820, 805, -842, 1637, -1635, 805, -1641, 804, -2479, 1636, -1635, 804, -8180, 804, -1663, 2438, -824, 1630, -1640, 1655, -823, 3242]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_out).active_index() == 5);
+          then:
+          - logger.log: "MaxxFan Speed out 50"
+          - remote_transmitter.transmit_raw:
+             code: [1619, -834, 803, -1640, 816, -833, 804, -1636, 846, -805, 804, -819, 1636, -819, 841, -2442, 6523, -2477, 840, -5721, 806, -1634, 5746, -810, 805, -1634, 836, -4903, 806, -2453, 4936, -815, 1635, -1635, 805, -4095, 833, -3267, 4084, -814, 2468, -1633, 2467, -1636, 1609, -3296, 806, -821, 804, -1662, 3244, -1664, 1636, -819, 1636, -1636, 1636, -1634, 804, -1638, 826, -2457, 1613, -1660, 806, -8179, 828, -1640, 2437, -822, 1633, -1640, 3271, -1663, 802]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_out).active_index() == 6);
+          then:
+          - logger.log: "MaxxFan Speed out 60"
+          - remote_transmitter.transmit_raw:
+             code: [1670, -804, 809, -1631, 840, -806, 806, -1634, 815, -831, 805, -819, 1635, -817, 814, -2467, 6546, -2445, 803, -5727, 811, -1678, 5690, -840, 805, -1631, 808, -4930, 804, -2453, 4899, -822, 1630, -1637, 834, -4081, 834, -3264, 4066, -827, 2461, -1633, 2435, -1641, 1627, -3276, 801, -848, 773, -1672, 3254, -1646, 2434, -3303, 1601, -1672, 794, -1673, 769, -2492, 1597, -1673, 792, -8218, 768, -1679, 2425, -857, 1597, -1673, 1600, -1671, 765, -883, 765]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_out).active_index() == 7);
+          then:
+          - logger.log: "MaxxFan Speed out 70"
+          - remote_transmitter.transmit_raw:
+             code: [1640, -815, 840, -1628, 810, -815, 837, -1633, 803, -820, 835, -813, 1618, -836, 779, -2478, 6555, -2464, 808, -5725, 805, -1658, 5712, -818, 808, -1657, 803, -4910, 809, -2473, 4881, -848, 1604, -1668, 833, -4090, 801, -3276, 4105, -816, 2437, -1637, 2436, -1666, 1608, -3298, 804, -846, 775, -1694, 3241, -1643, 1631, -1644, 2437, -849, 774, -1669, 801, -1669, 772, -2493, 1600, -1668, 798, -8208, 774, -1670, 2432, -850, 1602, -1668, 2433, -1670, 770, -858, 793]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_out).active_index() == 8);
+          then:
+          - logger.log: "MaxxFan Speed out 80"
+          - remote_transmitter.transmit_raw:
+             code: [1644, -808, 807, -1634, 833, -816, 804, -1635, 840, -810, 807, -818, 1637, -816, 838, -2446, 6542, -2455, 812, -5748, 832, -1608, 5715, -844, 774, -1667, 837, -4910, 773, -2486, 4936, -821, 1604, -1665, 774, -4123, 803, -3299, 4047, -852, 2440, -1661, 2409, -1672, 1632, -3275, 827, -825, 802, -1663, 3242, -1668, 4044, -852, 798, -849, 797, -1647, 798, -1672, 774, -2489, 1603, -1671, 795, -8218, 770, -1675, 2430, -855, 1602, -1673, 1602, -857, 792, -2494, 766]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_out).active_index() == 9);
+          then:
+          - logger.log: "MaxxFan Speed out 90"
+          - remote_transmitter.transmit_raw:
+             code: [1638, -815, 846, -1623, 804, -817, 846, -1621, 805, -817, 814, -834, 1645, -809, 806, -2451, 6574, -2447, 806, -5725, 834, -1628, 5708, -822, 802, -1660, 800, -4913, 801, -2479, 4872, -850, 1625, -1644, 797, -4123, 774, -3302, 4066, -850, 2406, -1671, 2429, -1672, 1597, -3306, 792, -856, 769, -1698, 3208, -1698, 1573, -881, 766, -1679, 761, -883, 764, -1676, 764, -1704, 763, -2499, 1568, -1704, 760, -8247, 736, -1732, 2370, -892, 1563, -1710, 4031, -1712, 730]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
+      - if:
+          condition:
+            lambda: |-
+              return (id(maxxfan_speed_out).active_index() == 10);
+          then:
+          - logger.log: "MaxxFan Speed out 100"
+          - remote_transmitter.transmit_raw:
+             code: [1617, -834, 781, -1659, 841, -807, 781, -1660, 838, -810, 808, -816, 1638, -818, 840, -2443, 6544, -2455, 833, -5729, 779, -1662, 5744, -817, 801, -1639, 832, -4909, 777, -2483, 4908, -843, 1636, -1638, 805, -4093, 834, -3267, 4049, -851, 2437, -1664, 2437, -1667, 1605, -3299, 773, -853, 798, -1666, 3238, -1668, 2409, -853, 1602, -1670, 797, -1668, 771, -1677, 791, -2491, 1599, -1672, 769, -8219, 791, -1701, 2403, -857, 1598, -1674, 1596, -2495, 2400]
+             repeat:
+                times: 1
+                wait_time: 16ms
+             carrier_frequency: 38kHz
+          - select.set:
+             id: maxxfan_function
+             option: "---"
+          - select.set:
+             id: maxxfan_speed_in
+             option: "---"
